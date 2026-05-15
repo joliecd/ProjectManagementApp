@@ -2979,12 +2979,17 @@
             () => DeleteCard(laneId, card.Id));
     }
 
-    private void ConfirmDeleteTodo(Guid laneId, Guid cardId, TodoItem todo)
+    private async Task ConfirmDeleteTodo(Guid laneId, Guid cardId, TodoItem todo)
     {
+        if (string.IsNullOrWhiteSpace(todo.Notes))
+        {
+            await DeleteTodo(laneId, cardId, todo.Id);
+            return;
+        }
         var todoLabel = board?.TodoLabel ?? "Todo";
         ConfirmDelete(
             $"Delete {todoLabel}",
-            $"Are you sure you want to delete <strong>{HtmlEncode(todo.Text)}</strong>?",
+            $"This {todoLabel.ToLower()} has notes attached. Are you sure you want to delete <strong>{HtmlEncode(todo.Text)}</strong>?",
             () => DeleteTodo(laneId, cardId, todo.Id));
     }
 
