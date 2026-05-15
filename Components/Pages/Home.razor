@@ -449,7 +449,7 @@
                 var groupLabel = group.Key;
                 var groupActiveCount = group.Sum(l => l.Cards.Count(c => !c.IsCompleted));
                 var isGroupCollapsed = IsGroupCollapsed(groupLabel);
-                <div class="lane-group-section">
+                <div class="lane-group-section @(isGroupCollapsed ? "collapsed" : "")">
                     <div class="lane-group-header @(isGroupCollapsed ? "collapsed" : "")">
                         <button class="btn-collapse-group" @onclick="() => ToggleGroupCollapse(groupLabel)" title="@(isGroupCollapsed ? "Expand group" : "Collapse group")">
                             <span class="collapse-icon @(isGroupCollapsed ? "collapsed" : "")">▼</span>
@@ -498,10 +498,7 @@
                         <span class="collapse-icon @(IsLaneCollapsed(lane.Id) ? "collapsed" : "")">▼</span>
                     </button>
                     <h3>@lane.Name</h3>
-                    @if (!string.IsNullOrWhiteSpace(lane.GroupLabel))
-                    {
-                        <span class="lane-group-chip">@lane.GroupLabel</span>
-                    }
+
                     @if (IsLaneCollapsed(lane.Id))
                     {
                         <span class="lane-collapsed-summary">@lane.Cards.Count(c => !c.IsCompleted) active</span>
@@ -1789,6 +1786,7 @@
     .swimlane-actions {
         display: flex;
         gap: 5px;
+        flex-shrink: 0;
     }
 
     .swimlane-tasks {
@@ -2370,6 +2368,10 @@
         gap: 0;
     }
 
+    .lane-group-section.collapsed {
+        flex: 0 0 auto;
+    }
+
     .lane-group-lanes {
         display: flex;
         gap: 20px;
@@ -2413,17 +2415,7 @@
         line-height: 1;
     }
 
-    .lane-group-chip {
-        display: inline-block;
-        font-size: 10px;
-        padding: 1px 6px;
-        border-radius: 10px;
-        background: var(--bg-tertiary);
-        color: var(--text-muted);
-        border: 1px solid var(--border-light);
-        margin-left: 4px;
-        vertical-align: middle;
-    }
+
 </style>
 
 @code {
