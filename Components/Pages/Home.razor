@@ -449,7 +449,7 @@
                 var groupLabel = group.Key;
                 var groupActiveCount = group.Sum(l => l.Cards.Count(c => !c.IsCompleted));
                 var isGroupCollapsed = IsGroupCollapsed(groupLabel);
-                <div class="lane-group-section">
+                <div class="lane-group-section" style="@(isCondensedView ? "grid-column: 1 / -1;" : "")">
                     <div class="lane-group-header @(isGroupCollapsed ? "collapsed" : "")">
                         <button class="btn-collapse-group" @onclick="() => ToggleGroupCollapse(groupLabel)" title="@(isGroupCollapsed ? "Expand group" : "Collapse group")">
                             <span class="collapse-icon @(isGroupCollapsed ? "collapsed" : "")">▼</span>
@@ -459,7 +459,7 @@
                     </div>
                     @if (!isGroupCollapsed)
                     {
-                        <div class="lane-group-lanes">
+                        <div class="lane-group-lanes" style="@(isCondensedView ? "display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); overflow-x: hidden;" : "")">
                             @foreach (var lane in group.OrderBy(l => l.Order))
                             {
                                 @RenderLane(lane)
