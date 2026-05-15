@@ -36,6 +36,7 @@ public class BoardService
                 // Migrate cards: ensure Notes and Links exist
                 foreach (var lane in board.Lanes)
                 {
+                    lane.GroupLabel ??= null; // already null by default, ensures deserialization compat
                     foreach (var card in lane.Cards)
                     {
                         card.Notes ??= string.Empty;
@@ -170,13 +171,14 @@ public class BoardService
         return null!;
     }
 
-    public async Task UpdateLaneAsync(Guid boardId, Guid laneId, string name)
+    public async Task UpdateLaneAsync(Guid boardId, Guid laneId, string name, string? groupLabel = null)
     {
         var board = _collection.Boards.FirstOrDefault(b => b.Id == boardId);
         var lane = board?.Lanes.FirstOrDefault(l => l.Id == laneId);
         if (lane != null)
         {
             lane.Name = name;
+            lane.GroupLabel = groupLabel;
             board!.LastModified = DateTime.UtcNow;
             await SaveCollectionAsync();
         }

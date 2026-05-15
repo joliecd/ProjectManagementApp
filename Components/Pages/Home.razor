@@ -376,32 +376,88 @@
     @if (board != null)
     {
         <div class="kanban-board @(isCondensedView ? "condensed" : "")">
-            @foreach (var lane in board.Lanes.OrderBy(l => l.Order))
+            @{
+                var orderedLanes = board.Lanes.OrderBy(l => l.Order).ToList();
+                var ungroupedLanes = orderedLanes.Where(l => string.IsNullOrWhiteSpace(l.GroupLabel)).ToList();
+                var groupedLanes = orderedLanes
+                    .Where(l => !string.IsNullOrWhiteSpace(l.GroupLabel))
+                    .GroupBy(l => l.GroupLabel!)
+                    .ToList();
+                bool hasAnyGroups = groupedLanes.Any();
+            }
+
+            @* Ungrouped lanes render first (no group header) *@
+            @foreach (var lane in ungroupedLanes)
             {
-                <div class="swimlane @(IsLaneCollapsed(lane.Id) ? "collapsed" : "")">
-                    <div class="swimlane-header">
-                        @if (editingLaneId == lane.Id)
-                        {
-                            <input type="text" @bind="editingLaneName" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" class="edit-input" />
-                            <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)">✓</button>
-                            <button class="btn-icon" @onclick="CancelLaneEdit">✕</button>
-                        }
-                        else
-                        {
-                            <button class="btn-collapse-lane" @onclick="() => ToggleLaneCollapse(lane.Id)" title="@(IsLaneCollapsed(lane.Id) ? "Expand" : "Collapse")">
-                                <span class="collapse-icon @(IsLaneCollapsed(lane.Id) ? "collapsed" : "")">▼</span>
-                            </button>
-                            <h3>@lane.Name</h3>
-                            @if (IsLaneCollapsed(lane.Id))
-                            {
-                                <span class="lane-collapsed-summary">@lane.Cards.Count(c => !c.IsCompleted) active</span>
-                            }
-                            <div class="swimlane-actions">
-                                <button class="btn-icon" @onclick="() => StartEditLane(lane)">✎</button>
-                                <button class="btn-icon btn-delete" @onclick="() => DeleteLane(lane.Id)">🗑</button>
-                            </div>
-                        }
+                @RenderLane(lane)
+            }
+
+            @* Grouped lanes with section headers *@
+            @foreach (var group in groupedLanes)
+            {
+                var groupLabel = group.Key;
+                var groupActiveCount = group.Sum(l => l.Cards.Count(c => !c.IsCompleted));
+                var isGroupCollapsed = IsGroupCollapsed(groupLabel);
+                <div class="lane-group-header @(isGroupCollapsed ? "collapsed" : "")">
+                    <button class="btn-collapse-group" @onclick="() => ToggleGroupCollapse(groupLabel)" title="@(isGroupCollapsed ? "Expand group" : "Collapse group")">
+                        <span class="collapse-icon @(isGroupCollapsed ? "collapsed" : "")">▼</span>
+                    </button>
+                    <span class="lane-group-label">@groupLabel</span>
+                    <span class="lane-group-count">@groupActiveCount active</span>
+                </div>
+                @if (!isGroupCollapsed)
+                {
+                    @foreach (var lane in group.OrderBy(l => l.Order))
+                    {
+                        @RenderLane(lane)
+                    }
+                }
+            }
+        </div>
+    }
+    else if (allBoards.Count == 0)
+    {
+        <div class="empty-state">
+            <p>No boards yet. Create your first board to get started!</p>
+            <button class="btn-add-swimlane" @onclick="ShowNewBoardPanel">+ Create Board</button>
+        </div>
+    }
+</div>
+</div>
+
+@* Lane render helper *@
+@functions {
+    private RenderFragment RenderLane(Lane lane) => __builder =>
+    {
+        <div class="swimlane @(IsLaneCollapsed(lane.Id) ? "collapsed" : "")">
+            <div class="swimlane-header">
+                @if (editingLaneId == lane.Id)
+                {
+                    <input type="text" @bind="editingLaneName" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" class="edit-input" />
+                    <input type="text" @bind="editingLaneGroup" placeholder="Group (e.g. Customers)" class="edit-input edit-input-group" />
+                    <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)">✓</button>
+                    <button class="btn-icon" @onclick="CancelLaneEdit">✕</button>
+                }
+                else
+                {
+                    <button class="btn-collapse-lane" @onclick="() => ToggleLaneCollapse(lane.Id)" title="@(IsLaneCollapsed(lane.Id) ? "Expand" : "Collapse")">
+                        <span class="collapse-icon @(IsLaneCollapsed(lane.Id) ? "collapsed" : "")">▼</span>
+                    </button>
+                    <h3>@lane.Name</h3>
+                    @if (!string.IsNullOrWhiteSpace(lane.GroupLabel))
+                    {
+                        <span class="lane-group-chip">@lane.GroupLabel</span>
+                    }
+                    @if (IsLaneCollapsed(lane.Id))
+                    {
+                        <span class="lane-collapsed-summary">@lane.Cards.Count(c => !c.IsCompleted) active</span>
+                    }
+                    <div class="swimlane-actions">
+                        <button class="btn-icon" @onclick="() => StartEditLane(lane)">✎</button>
+                        <button class="btn-icon btn-delete" @onclick="() => DeleteLane(lane.Id)">🗑</button>
                     </div>
+                }
+            </div>
                     @if (!IsLaneCollapsed(lane.Id))
                     {
                     <div class="swimlane-tasks">
@@ -574,18 +630,8 @@
                     <button class="btn-add-task" @onclick="() => ShowAddCardPanel(lane.Id)">+ Add @(board?.CardLabel ?? "Card")</button>
                     }
                 </div>
-            }
-        </div>
-    }
-    else if (allBoards.Count == 0)
-    {
-        <div class="empty-state">
-            <p>No boards yet. Create your first board to get started!</p>
-            <button class="btn-add-swimlane" @onclick="ShowNewBoardPanel">+ Create Board</button>
-        </div>
-    }
-</div>
-</div>
+    };
+}
 
 <style>
     /* CSS Variables - Dark mode as default */
@@ -2218,6 +2264,60 @@
         background: var(--bg-tertiary);
         color: var(--text-primary);
     }
+
+    .edit-input-group {
+        flex: 0 0 160px;
+        font-size: 12px;
+        opacity: 0.85;
+    }
+
+    .lane-group-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 6px 12px;
+        margin: 4px 0;
+        background: var(--bg-secondary);
+        border-top: 2px solid var(--border-color);
+        border-radius: 4px;
+        user-select: none;
+    }
+
+    .lane-group-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .lane-group-count {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-left: 4px;
+    }
+
+    .btn-collapse-group {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-muted);
+        padding: 2px 4px;
+        line-height: 1;
+    }
+
+    .lane-group-chip {
+        display: inline-block;
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 10px;
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        border: 1px solid var(--border-light);
+        margin-left: 4px;
+        vertical-align: middle;
+    }
 </style>
 
 @code {
@@ -2267,6 +2367,8 @@
     // Lane editing
     private Guid? editingLaneId;
     private string editingLaneName = "";
+    private string editingLaneGroup = "";
+    private HashSet<string> collapsedGroupLabels = new();
 
     // Card panel
     private bool showCardPanel = false;
@@ -2580,6 +2682,15 @@
     {
         editingLaneId = lane.Id;
         editingLaneName = lane.Name;
+        editingLaneGroup = lane.GroupLabel ?? "";
+    }
+
+    private bool IsGroupCollapsed(string label) => collapsedGroupLabels.Contains(label);
+
+    private void ToggleGroupCollapse(string label)
+    {
+        if (!collapsedGroupLabels.Remove(label))
+            collapsedGroupLabels.Add(label);
     }
 
     private async Task HandleLaneEditKeyPress(KeyboardEventArgs e, Guid laneId)
@@ -2598,7 +2709,8 @@
     {
         if (!string.IsNullOrWhiteSpace(editingLaneName) && board != null)
         {
-            await BoardService.UpdateLaneAsync(board.Id, laneId, editingLaneName.Trim());
+            var groupLabel = string.IsNullOrWhiteSpace(editingLaneGroup) ? null : editingLaneGroup.Trim();
+            await BoardService.UpdateLaneAsync(board.Id, laneId, editingLaneName.Trim(), groupLabel);
             board = await BoardService.GetBoardAsync(board.Id);
         }
         CancelLaneEdit();
@@ -2608,6 +2720,7 @@
     {
         editingLaneId = null;
         editingLaneName = "";
+        editingLaneGroup = "";
     }
 
     private async Task DeleteLane(Guid laneId)
