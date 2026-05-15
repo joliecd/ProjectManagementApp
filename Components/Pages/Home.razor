@@ -259,6 +259,22 @@
         </div>
     }
 
+    @* Delete Lane Confirmation Modal *@
+    @if (showDeleteLaneConfirm)
+    {
+        <div class="modal-backdrop" @onclick="CancelDeleteLane"></div>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <h3>Delete @(board?.LaneLabel ?? "Lane")</h3>
+                <p>Are you sure you want to delete <strong>@deleteLaneName</strong>? This will remove all its @(board?.CardLabel ?? "Card")s and cannot be undone.</p>
+                <div class="modal-buttons">
+                    <button class="btn-cancel" @onclick="CancelDeleteLane">Cancel</button>
+                    <button class="btn-save btn-delete-confirm" @onclick="ExecuteDeleteLane">OK</button>
+                </div>
+            </div>
+        </div>
+    }
+
     @* Card Modal *@
     @if (showCardPanel)
     {
@@ -506,7 +522,7 @@
                     <div class="swimlane-actions">
                         <button class="btn-icon btn-group" @onclick="() => ShowGroupModal(lane)" title="Set Group">▤</button>
                         <button class="btn-icon" @onclick="() => StartEditLane(lane)">✎</button>
-                        <button class="btn-icon btn-delete" @onclick="() => DeleteLane(lane.Id)">🗑</button>
+                        <button class="btn-icon btn-delete" @onclick="() => ConfirmDeleteLane(lane)" title="Delete @(board?.LaneLabel ?? "Lane")">🗑</button>
                     </div>
                 }
             </div>
@@ -1315,6 +1331,14 @@
 
     .modal-buttons .btn-save:hover {
         background: var(--accent-hover);
+    }
+
+    .modal-buttons .btn-delete-confirm {
+        background: #dc3545;
+    }
+
+    .modal-buttons .btn-delete-confirm:hover {
+        background: #c82333;
     }
 
     /* Report Configuration Styles */
@@ -2900,6 +2924,35 @@
     {
         editingLaneId = null;
         editingLaneName = "";
+    }
+
+    // Delete lane confirmation
+    private bool showDeleteLaneConfirm = false;
+    private Guid? deleteLaneId;
+    private string deleteLaneName = "";
+
+    private void ConfirmDeleteLane(Lane lane)
+    {
+        deleteLaneId = lane.Id;
+        deleteLaneName = lane.Name;
+        showDeleteLaneConfirm = true;
+    }
+
+    private void CancelDeleteLane()
+    {
+        showDeleteLaneConfirm = false;
+        deleteLaneId = null;
+        deleteLaneName = "";
+    }
+
+    private async Task ExecuteDeleteLane()
+    {
+        if (board != null && deleteLaneId.HasValue)
+        {
+            await BoardService.DeleteLaneAsync(board.Id, deleteLaneId.Value);
+            board = await BoardService.GetBoardAsync(board.Id);
+        }
+        CancelDeleteLane();
     }
 
     private async Task DeleteLane(Guid laneId)
