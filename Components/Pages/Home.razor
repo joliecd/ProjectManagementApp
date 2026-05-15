@@ -449,7 +449,7 @@
                 var groupLabel = group.Key;
                 var groupActiveCount = group.Sum(l => l.Cards.Count(c => !c.IsCompleted));
                 var isGroupCollapsed = IsGroupCollapsed(groupLabel);
-                <div class="lane-group-section @(isGroupCollapsed ? "collapsed" : "")">
+                <div class="lane-group-section">
                     <div class="lane-group-header @(isGroupCollapsed ? "collapsed" : "")">
                         <button class="btn-collapse-group" @onclick="() => ToggleGroupCollapse(groupLabel)" title="@(isGroupCollapsed ? "Expand group" : "Collapse group")">
                             <span class="collapse-icon @(isGroupCollapsed ? "collapsed" : "")">▼</span>
@@ -2366,10 +2366,6 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-    }
-
-    .lane-group-section.collapsed {
-        flex: 0 0 auto;
     }
 
     .lane-group-lanes {
