@@ -36,7 +36,7 @@ public class BoardService
                 // Migrate cards: ensure Notes and Links exist
                 foreach (var lane in board.Lanes)
                 {
-                    lane.GroupLabel ??= null; // already null by default, ensures deserialization compat
+                    lane.GroupLabel ??= null;
                     foreach (var card in lane.Cards)
                     {
                         card.Notes ??= string.Empty;

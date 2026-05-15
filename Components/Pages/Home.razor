@@ -383,7 +383,6 @@
                     .Where(l => !string.IsNullOrWhiteSpace(l.GroupLabel))
                     .GroupBy(l => l.GroupLabel!)
                     .ToList();
-                bool hasAnyGroups = groupedLanes.Any();
             }
 
             @* Ungrouped lanes render first (no group header) *@
@@ -434,7 +433,20 @@
                 @if (editingLaneId == lane.Id)
                 {
                     <input type="text" @bind="editingLaneName" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" class="edit-input" />
-                    <input type="text" @bind="editingLaneGroup" placeholder="Group (e.g. Customers)" class="edit-input edit-input-group" />
+                    <div class="group-selector">
+                        <select class="edit-select-group" value="@GetGroupSelectValue()" @onchange="OnGroupSelectChanged">
+                            <option value="">— No Group —</option>
+                            @foreach (var g in GetExistingGroups())
+                            {
+                                <option value="@g">@g</option>
+                            }
+                            <option value="__new__">+ New Group…</option>
+                        </select>
+                        @if (showNewGroupInput)
+                        {
+                            <input type="text" @bind="editingLaneGroup" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" placeholder="New group name" class="edit-input edit-input-newgroup" />
+                        }
+                    </div>
                     <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)">✓</button>
                     <button class="btn-icon" @onclick="CancelLaneEdit">✕</button>
                 }
@@ -458,9 +470,9 @@
                     </div>
                 }
             </div>
-                    @if (!IsLaneCollapsed(lane.Id))
-                    {
-                    <div class="swimlane-tasks">
+            @if (!IsLaneCollapsed(lane.Id))
+            {
+                <div class="swimlane-tasks">
                         @foreach (var card in lane.Cards.Where(c => showCompleted || !c.IsCompleted).OrderBy(c => c.IsCompleted).ThenBy(c => c.Order))
                         {
                             <div id="card-@card.Id" class="task-card @(card.IsCompleted ? "completed" : "") @(IsCardCollapsed(card.Id) ? "collapsed" : "") @(focusedCardId == card.Id ? "focused" : "")" draggable="true"
@@ -628,8 +640,8 @@
                         }
                     </div>
                     <button class="btn-add-task" @onclick="() => ShowAddCardPanel(lane.Id)">+ Add @(board?.CardLabel ?? "Card")</button>
-                    }
-                </div>
+            }
+        </div>
     };
 }
 
@@ -2265,10 +2277,37 @@
         color: var(--text-primary);
     }
 
-    .edit-input-group {
-        flex: 0 0 160px;
+    .group-selector {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex: 0 0 auto;
+    }
+
+    .edit-select-group {
+        padding: 4px 6px;
+        border: 1px solid var(--accent-primary);
+        border-radius: 4px;
         font-size: 12px;
-        opacity: 0.85;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        cursor: pointer;
+        min-width: 140px;
+    }
+
+    .edit-select-group option {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+
+    .edit-input-newgroup {
+        flex: 0 0 130px;
+        padding: 4px 6px;
+        border: 1px solid var(--accent-primary);
+        border-radius: 4px;
+        font-size: 12px;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
     }
 
     .lane-group-header {
@@ -2368,6 +2407,7 @@
     private Guid? editingLaneId;
     private string editingLaneName = "";
     private string editingLaneGroup = "";
+    private bool showNewGroupInput = false;
     private HashSet<string> collapsedGroupLabels = new();
 
     // Card panel
@@ -2683,6 +2723,39 @@
         editingLaneId = lane.Id;
         editingLaneName = lane.Name;
         editingLaneGroup = lane.GroupLabel ?? "";
+        showNewGroupInput = false;
+    }
+
+    private List<string> GetExistingGroups()
+    {
+        if (board == null) return new();
+        return board.Lanes
+            .Where(l => !string.IsNullOrWhiteSpace(l.GroupLabel))
+            .Select(l => l.GroupLabel!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g)
+            .ToList();
+    }
+
+    private string GetGroupSelectValue()
+    {
+        if (showNewGroupInput) return "__new__";
+        return editingLaneGroup;
+    }
+
+    private void OnGroupSelectChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        if (value == "__new__")
+        {
+            showNewGroupInput = true;
+            editingLaneGroup = "";
+        }
+        else
+        {
+            showNewGroupInput = false;
+            editingLaneGroup = value;
+        }
     }
 
     private bool IsGroupCollapsed(string label) => collapsedGroupLabels.Contains(label);
@@ -2721,6 +2794,7 @@
         editingLaneId = null;
         editingLaneName = "";
         editingLaneGroup = "";
+        showNewGroupInput = false;
     }
 
     private async Task DeleteLane(Guid laneId)
