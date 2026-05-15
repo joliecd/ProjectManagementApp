@@ -207,6 +207,58 @@
         </div>
     }
 
+    @* Group Assignment Modal *@
+    @if (showGroupModal)
+    {
+        <div class="modal-backdrop" @onclick="CloseGroupModal"></div>
+        <div class="modal-dialog" @onkeydown="HandleGroupModalKeyDown">
+            <div class="modal-content">
+                <h3>Set Group — @groupModalLaneName</h3>
+                @{
+                    var existingGroups = GetExistingGroups();
+                }
+                @if (existingGroups.Any())
+                {
+                    <div class="group-pick-list">
+                        @foreach (var g in existingGroups)
+                        {
+                            <button class="btn-group-pick @(groupModalSelected == g ? "selected" : "")"
+                                    @onclick="() => SelectGroup(g)">@g</button>
+                        }
+                    </div>
+                }
+                <div class="group-new-section">
+                    <input type="text" placeholder="New group name…" @bind="groupModalNewName" @bind:event="oninput"
+                           class="modal-input" />
+                </div>
+                <div class="modal-buttons">
+                    @if (!string.IsNullOrWhiteSpace(groupModalSelected))
+                    {
+                        <button type="button" class="btn-cancel" @onclick="RemoveGroup">Remove Group</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn-cancel" @onclick="CloseGroupModal">Cancel</button>
+                    }
+                    <button type="button" class="btn-save" @onclick="ApplyGroup">
+                        @if (!string.IsNullOrWhiteSpace(groupModalNewName))
+                        {
+                            @:Create & Apply
+                        }
+                        else if (!string.IsNullOrWhiteSpace(groupModalSelected))
+                        {
+                            @:Apply
+                        }
+                        else
+                        {
+                            @:Apply
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     @* Card Modal *@
     @if (showCardPanel)
     {
@@ -433,20 +485,6 @@
                 @if (editingLaneId == lane.Id)
                 {
                     <input type="text" @bind="editingLaneName" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" class="edit-input" />
-                    <div class="group-selector">
-                        <select class="edit-select-group" value="@GetGroupSelectValue()" @onchange="OnGroupSelectChanged">
-                            <option value="">— No Group —</option>
-                            @foreach (var g in GetExistingGroups())
-                            {
-                                <option value="@g">@g</option>
-                            }
-                            <option value="__new__">+ New Group…</option>
-                        </select>
-                        @if (showNewGroupInput)
-                        {
-                            <input type="text" @bind="editingLaneGroup" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" placeholder="New group name" class="edit-input edit-input-newgroup" />
-                        }
-                    </div>
                     <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)">✓</button>
                     <button class="btn-icon" @onclick="CancelLaneEdit">✕</button>
                 }
@@ -465,6 +503,7 @@
                         <span class="lane-collapsed-summary">@lane.Cards.Count(c => !c.IsCompleted) active</span>
                     }
                     <div class="swimlane-actions">
+                        <button class="btn-icon btn-group" @onclick="() => ShowGroupModal(lane)" title="Set Group">▤</button>
                         <button class="btn-icon" @onclick="() => StartEditLane(lane)">✎</button>
                         <button class="btn-icon btn-delete" @onclick="() => DeleteLane(lane.Id)">🗑</button>
                     </div>
@@ -2277,37 +2316,46 @@
         color: var(--text-primary);
     }
 
-    .group-selector {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex: 0 0 auto;
+    .btn-group {
+        color: var(--text-muted);
+        font-size: 14px;
     }
 
-    .edit-select-group {
-        padding: 4px 6px;
-        border: 1px solid var(--accent-primary);
-        border-radius: 4px;
-        font-size: 12px;
+    .btn-group:hover {
+        color: var(--accent-primary);
+    }
+
+    .group-pick-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .btn-group-pick {
+        padding: 5px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
         background: var(--bg-tertiary);
         color: var(--text-primary);
         cursor: pointer;
-        min-width: 140px;
+        font-size: 13px;
+        transition: all 0.15s;
     }
 
-    .edit-select-group option {
-        background: var(--bg-tertiary);
-        color: var(--text-primary);
+    .btn-group-pick:hover {
+        border-color: var(--accent-primary);
+        background: var(--bg-hover);
     }
 
-    .edit-input-newgroup {
-        flex: 0 0 130px;
-        padding: 4px 6px;
-        border: 1px solid var(--accent-primary);
-        border-radius: 4px;
-        font-size: 12px;
-        background: var(--bg-tertiary);
-        color: var(--text-primary);
+    .btn-group-pick.selected {
+        border-color: var(--accent-primary);
+        background: var(--accent-primary);
+        color: #fff;
+    }
+
+    .group-new-section {
+        margin-bottom: 4px;
     }
 
     .lane-group-header {
@@ -2406,9 +2454,14 @@
     // Lane editing
     private Guid? editingLaneId;
     private string editingLaneName = "";
-    private string editingLaneGroup = "";
-    private bool showNewGroupInput = false;
     private HashSet<string> collapsedGroupLabels = new();
+
+    // Group assignment modal
+    private bool showGroupModal = false;
+    private Guid groupModalLaneId;
+    private string groupModalLaneName = "";
+    private string groupModalSelected = "";
+    private string groupModalNewName = "";
 
     // Card panel
     private bool showCardPanel = false;
@@ -2722,8 +2775,6 @@
     {
         editingLaneId = lane.Id;
         editingLaneName = lane.Name;
-        editingLaneGroup = lane.GroupLabel ?? "";
-        showNewGroupInput = false;
     }
 
     private List<string> GetExistingGroups()
@@ -2737,25 +2788,64 @@
             .ToList();
     }
 
-    private string GetGroupSelectValue()
+    private void ShowGroupModal(Lane lane)
     {
-        if (showNewGroupInput) return "__new__";
-        return editingLaneGroup;
+        groupModalLaneId = lane.Id;
+        groupModalLaneName = lane.Name;
+        groupModalSelected = lane.GroupLabel ?? "";
+        groupModalNewName = "";
+        showGroupModal = true;
     }
 
-    private void OnGroupSelectChanged(ChangeEventArgs e)
+    private void CloseGroupModal()
     {
-        var value = e.Value?.ToString() ?? "";
-        if (value == "__new__")
+        showGroupModal = false;
+        groupModalNewName = "";
+        groupModalSelected = "";
+    }
+
+    private void SelectGroup(string group)
+    {
+        groupModalSelected = group;
+        groupModalNewName = "";
+    }
+
+    private async Task ApplyGroup()
+    {
+        if (board == null) { CloseGroupModal(); return; }
+        string? label = null;
+        if (!string.IsNullOrWhiteSpace(groupModalNewName))
+            label = groupModalNewName.Trim();
+        else if (!string.IsNullOrWhiteSpace(groupModalSelected))
+            label = groupModalSelected;
+
+        var lane = board.Lanes.FirstOrDefault(l => l.Id == groupModalLaneId);
+        if (lane != null)
         {
-            showNewGroupInput = true;
-            editingLaneGroup = "";
+            await BoardService.UpdateLaneAsync(board.Id, groupModalLaneId, lane.Name, label);
+            board = await BoardService.GetBoardAsync(board.Id);
         }
-        else
+        CloseGroupModal();
+    }
+
+    private async Task RemoveGroup()
+    {
+        if (board == null) { CloseGroupModal(); return; }
+        var lane = board.Lanes.FirstOrDefault(l => l.Id == groupModalLaneId);
+        if (lane != null)
         {
-            showNewGroupInput = false;
-            editingLaneGroup = value;
+            await BoardService.UpdateLaneAsync(board.Id, groupModalLaneId, lane.Name, null);
+            board = await BoardService.GetBoardAsync(board.Id);
         }
+        CloseGroupModal();
+    }
+
+    private async Task HandleGroupModalKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await ApplyGroup();
+        else if (e.Key == "Escape")
+            CloseGroupModal();
     }
 
     private bool IsGroupCollapsed(string label) => collapsedGroupLabels.Contains(label);
@@ -2782,8 +2872,8 @@
     {
         if (!string.IsNullOrWhiteSpace(editingLaneName) && board != null)
         {
-            var groupLabel = string.IsNullOrWhiteSpace(editingLaneGroup) ? null : editingLaneGroup.Trim();
-            await BoardService.UpdateLaneAsync(board.Id, laneId, editingLaneName.Trim(), groupLabel);
+            var lane = board.Lanes.FirstOrDefault(l => l.Id == laneId);
+            await BoardService.UpdateLaneAsync(board.Id, laneId, editingLaneName.Trim(), lane?.GroupLabel);
             board = await BoardService.GetBoardAsync(board.Id);
         }
         CancelLaneEdit();
@@ -2793,8 +2883,6 @@
     {
         editingLaneId = null;
         editingLaneName = "";
-        editingLaneGroup = "";
-        showNewGroupInput = false;
     }
 
     private async Task DeleteLane(Guid laneId)
