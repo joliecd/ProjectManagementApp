@@ -92,8 +92,8 @@
             {
                 <div class="board-name-edit">
                     <input type="text" @bind="newBoardName" @onkeyup="HandleBoardNameKeyPress" class="board-name-input" />
-                    <button class="btn-icon" @onclick="SaveBoardName">✓</button>
-                    <button class="btn-icon" @onclick="CancelBoardNameEdit">✕</button>
+                    <button class="btn-icon" @onclick="SaveBoardName" title="Save board name">✓</button>
+                    <button class="btn-icon" @onclick="CancelBoardNameEdit" title="Cancel">✕</button>
                 </div>
             }
             else
@@ -111,7 +111,7 @@
                 @if (board != null)
                 {
                     <button class="btn-icon" @onclick="ShowEditBoardPanel" title="Board Settings">⚙</button>
-                    <button class="btn-icon btn-delete" @onclick="DeleteCurrentBoard" title="Delete Board">🗑</button>
+                    <button class="btn-icon btn-delete" @onclick="ConfirmDeleteCurrentBoard" title="Delete Board">🗑</button>
                 }
             </div>
         </div>
@@ -259,17 +259,17 @@
         </div>
     }
 
-    @* Delete Lane Confirmation Modal *@
-    @if (showDeleteLaneConfirm)
+    @* Generic Delete Confirmation Modal *@
+    @if (showDeleteConfirm)
     {
-        <div class="modal-backdrop" @onclick="CancelDeleteLane"></div>
+        <div class="modal-backdrop" @onclick="CancelDeleteConfirm"></div>
         <div class="modal-dialog">
             <div class="modal-content">
-                <h3>Delete @(board?.LaneLabel ?? "Lane")</h3>
-                <p>Are you sure you want to delete <strong>@deleteLaneName</strong>? This will remove all its @(board?.CardLabel ?? "Card")s and cannot be undone.</p>
+                <h3>@deleteConfirmTitle</h3>
+                <p>@((MarkupString)deleteConfirmMessage)</p>
                 <div class="modal-buttons">
-                    <button class="btn-cancel" @onclick="CancelDeleteLane">Cancel</button>
-                    <button class="btn-save btn-delete-confirm" @onclick="ExecuteDeleteLane">OK</button>
+                    <button class="btn-cancel" @onclick="CancelDeleteConfirm">Cancel</button>
+                    <button class="btn-save btn-delete-confirm" @onclick="ExecuteDeleteConfirm">OK</button>
                 </div>
             </div>
         </div>
@@ -505,8 +505,8 @@
                 @if (editingLaneId == lane.Id)
                 {
                     <input type="text" @bind="editingLaneName" @onkeyup="e => HandleLaneEditKeyPress(e, lane.Id)" class="edit-input" />
-                    <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)">✓</button>
-                    <button class="btn-icon" @onclick="CancelLaneEdit">✕</button>
+                    <button class="btn-icon" @onclick="() => SaveLaneEdit(lane.Id)" title="Save @(board?.LaneLabel ?? "Lane")">✓</button>
+                    <button class="btn-icon" @onclick="CancelLaneEdit" title="Cancel">✕</button>
                 }
                 else
                 {
@@ -521,7 +521,7 @@
                     }
                     <div class="swimlane-actions">
                         <button class="btn-icon btn-group" @onclick="() => ShowGroupModal(lane)" title="Set Group">▤</button>
-                        <button class="btn-icon" @onclick="() => StartEditLane(lane)">✎</button>
+                        <button class="btn-icon" @onclick="() => StartEditLane(lane)" title="Edit @(board?.LaneLabel ?? "Lane")">✎</button>
                         <button class="btn-icon btn-delete" @onclick="() => ConfirmDeleteLane(lane)" title="Delete @(board?.LaneLabel ?? "Lane")">🗑</button>
                     </div>
                 }
@@ -580,7 +580,7 @@
                                                                     @onclick:stopPropagation="true" 
                                                                     title="@(todo.IsTodaysTodo ? "Remove from Today" : "Add to Today")">⭐</button>
                                                         }
-                                                        <button class="btn-icon btn-todo-delete" @onclick="() => DeleteTodo(lane.Id, card.Id, todo.Id)" @onclick:stopPropagation="true">×</button>
+                                                        <button class="btn-icon btn-todo-delete" @onclick="() => ConfirmDeleteTodo(lane.Id, card.Id, todo)" @onclick:stopPropagation="true" title="Delete @(board?.TodoLabel ?? "Todo")">×</button>
                                                     </div>
                                                     @if (IsCardTodoNotesExpanded(todo.Id))
                                                     {
@@ -604,8 +604,8 @@
                                                    @onkeydown="e => HandleTodoKeyDown(e, lane.Id, card.Id)"
                                                    placeholder="@(board?.TodoLabel ?? "Todo") text..." 
                                                    class="todo-input" />
-                                            <button class="btn-icon" @onclick="() => AddTodo(lane.Id, card.Id)">✓</button>
-                                            <button class="btn-icon" @onclick="CancelAddTodo">✕</button>
+                                            <button class="btn-icon" @onclick="() => AddTodo(lane.Id, card.Id)" title="Add @(board?.TodoLabel ?? "Todo")">✓</button>
+                                            <button class="btn-icon" @onclick="CancelAddTodo" title="Cancel">✕</button>
                                         }
                                         else
                                         {
@@ -651,7 +651,7 @@
                                                 {
                                                     <div class="link-item">
                                                         <a href="@link.Url" target="_blank" rel="noopener noreferrer" @onclick:stopPropagation="true">@(string.IsNullOrWhiteSpace(link.Title) ? link.Url : link.Title)</a>
-                                                        <button class="btn-icon btn-link-delete" @onclick="() => DeleteLink(lane.Id, card.Id, link.Id)" @onclick:stopPropagation="true">×</button>
+                                                        <button class="btn-icon btn-link-delete" @onclick="() => ConfirmDeleteLink(lane.Id, card.Id, link)" @onclick:stopPropagation="true" title="Delete Link">×</button>
                                                     </div>
                                                 }
                                                 @if (addingLinkForCardId == card.Id)
@@ -660,8 +660,8 @@
                                                         <input type="text" @bind="newLinkTitle" placeholder="Link title (optional)" class="link-input" @onclick:stopPropagation="true" />
                                                         <input type="text" @bind="newLinkUrl" placeholder="URL" class="link-input" @onkeydown="e => HandleLinkKeyDown(e, lane.Id, card.Id)" @onclick:stopPropagation="true" />
                                                         <div class="link-form-actions">
-                                                            <button class="btn-icon" @onclick="() => AddLink(lane.Id, card.Id)" @onclick:stopPropagation="true">✓</button>
-                                                            <button class="btn-icon" @onclick="CancelAddLink" @onclick:stopPropagation="true">✕</button>
+                                                            <button class="btn-icon" @onclick="() => AddLink(lane.Id, card.Id)" @onclick:stopPropagation="true" title="Add Link">✓</button>
+                                                            <button class="btn-icon" @onclick="CancelAddLink" @onclick:stopPropagation="true" title="Cancel">✕</button>
                                                         </div>
                                                     </div>
                                                 }
@@ -680,7 +680,7 @@
                                         }
                                     </div>
                                     <div class="task-actions">
-                                        <button class="btn-icon" @onclick="() => ShowEditCardPanel(lane.Id, card)">✎</button>
+                                        <button class="btn-icon" @onclick="() => ShowEditCardPanel(lane.Id, card)" title="Edit @(board?.CardLabel ?? "Card")">✎</button>
                                         @if (card.IsCompleted)
                                         {
                                             <button class="btn-icon btn-reactivate" @onclick="() => ReactivateCard(lane.Id, card.Id)" title="Reactivate">↺</button>
@@ -689,7 +689,7 @@
                                         {
                                             <button class="btn-icon btn-complete" @onclick="() => CompleteCard(lane.Id, card.Id)" title="Mark Complete">✓</button>
                                         }
-                                        <button class="btn-icon btn-delete" @onclick="() => DeleteCard(lane.Id, card.Id)">🗑</button>
+                                        <button class="btn-icon btn-delete" @onclick="() => ConfirmDeleteCard(lane.Id, card)" title="Delete @(board?.CardLabel ?? "Card")">🗑</button>
                                     </div>
                                 }
                             </div>
@@ -2926,33 +2926,84 @@
         editingLaneName = "";
     }
 
-    // Delete lane confirmation
-    private bool showDeleteLaneConfirm = false;
-    private Guid? deleteLaneId;
-    private string deleteLaneName = "";
+    // Generic delete confirmation
+    private bool showDeleteConfirm = false;
+    private string deleteConfirmTitle = "";
+    private string deleteConfirmMessage = "";
+    private Func<Task>? deleteConfirmAction;
+
+    private void ConfirmDelete(string title, string message, Func<Task> action)
+    {
+        deleteConfirmTitle = title;
+        deleteConfirmMessage = message;
+        deleteConfirmAction = action;
+        showDeleteConfirm = true;
+    }
+
+    private void CancelDeleteConfirm()
+    {
+        showDeleteConfirm = false;
+        deleteConfirmAction = null;
+        deleteConfirmTitle = "";
+        deleteConfirmMessage = "";
+    }
+
+    private async Task ExecuteDeleteConfirm()
+    {
+        var action = deleteConfirmAction;
+        CancelDeleteConfirm();
+        if (action != null)
+        {
+            await action();
+        }
+    }
+
+    private string HtmlEncode(string? s) => System.Web.HttpUtility.HtmlEncode(s ?? "");
 
     private void ConfirmDeleteLane(Lane lane)
     {
-        deleteLaneId = lane.Id;
-        deleteLaneName = lane.Name;
-        showDeleteLaneConfirm = true;
+        var laneLabel = board?.LaneLabel ?? "Lane";
+        var cardLabel = board?.CardLabel ?? "Card";
+        ConfirmDelete(
+            $"Delete {laneLabel}",
+            $"Are you sure you want to delete <strong>{HtmlEncode(lane.Name)}</strong>? This will remove all its {cardLabel}s and cannot be undone.",
+            () => DeleteLane(lane.Id));
     }
 
-    private void CancelDeleteLane()
+    private void ConfirmDeleteCard(Guid laneId, Card card)
     {
-        showDeleteLaneConfirm = false;
-        deleteLaneId = null;
-        deleteLaneName = "";
+        var cardLabel = board?.CardLabel ?? "Card";
+        ConfirmDelete(
+            $"Delete {cardLabel}",
+            $"Are you sure you want to delete <strong>{HtmlEncode(card.Title)}</strong>? This cannot be undone.",
+            () => DeleteCard(laneId, card.Id));
     }
 
-    private async Task ExecuteDeleteLane()
+    private void ConfirmDeleteTodo(Guid laneId, Guid cardId, TodoItem todo)
     {
-        if (board != null && deleteLaneId.HasValue)
-        {
-            await BoardService.DeleteLaneAsync(board.Id, deleteLaneId.Value);
-            board = await BoardService.GetBoardAsync(board.Id);
-        }
-        CancelDeleteLane();
+        var todoLabel = board?.TodoLabel ?? "Todo";
+        ConfirmDelete(
+            $"Delete {todoLabel}",
+            $"Are you sure you want to delete <strong>{HtmlEncode(todo.Text)}</strong>?",
+            () => DeleteTodo(laneId, cardId, todo.Id));
+    }
+
+    private void ConfirmDeleteLink(Guid laneId, Guid cardId, CardLink link)
+    {
+        var label = string.IsNullOrWhiteSpace(link.Title) ? link.Url : link.Title;
+        ConfirmDelete(
+            "Delete Link",
+            $"Are you sure you want to delete <strong>{HtmlEncode(label)}</strong>?",
+            () => DeleteLink(laneId, cardId, link.Id));
+    }
+
+    private void ConfirmDeleteCurrentBoard()
+    {
+        if (board == null) return;
+        ConfirmDelete(
+            "Delete Board",
+            $"Are you sure you want to delete the board <strong>{HtmlEncode(board.Name)}</strong>? All its {(board.LaneLabel)}s, {(board.CardLabel)}s, and {(board.TodoLabel)}s will be permanently removed.",
+            () => DeleteCurrentBoard());
     }
 
     private async Task DeleteLane(Guid laneId)
